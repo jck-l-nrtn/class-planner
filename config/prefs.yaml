@@ -1,0 +1,100 @@
+# ============================================================
+# SCHEDULING PREFERENCES + PRIORITIZATION WEIGHTS
+# Every number the planner uses to make a judgment call lives here,
+# so you can tune behavior without touching code.
+#
+# This file ships with the planner and changes when you update it. Put your
+# own values in config/prefs.local.yaml (same layout, only the keys you want
+# to change); it wins over this file and is never overwritten by an update.
+# ============================================================
+
+# The ranked "today" to-do list aims to propose at most this much focused work,
+# even on a wide-open Saturday -- so the list stays doable instead of trying to
+# fill every free hour. Anything past the cap is pushed to "later this week".
+# Truly must-do-today deadlines are always shown, even if they exceed the cap.
+daily_focus_cap_minutes: 270      # ~4.5 hours
+
+# --- Workload calibration -------------------------------------
+# The standard expectation is ~3 hours of total work per credit hour per week,
+# class time included. Used to scale effort estimates per course until your own
+# logged time takes over. Set credit_hour_multiplier to 2 if that guideline
+# consistently overshoots how you actually work.
+calibration:
+  credit_hour_multiplier: 3
+
+# --- Prioritization ------------------------------------------
+# score = (grade_impact ** impact_exp) * urgency * multipliers
+priority:
+  # Urgency curve: how sharply priority rises as the deadline nears.
+  # "slack" = free working hours before due - hours of work remaining.
+  # Negative slack means you are already behind.
+  slack_critical_hours: 0     # slack <= this  -> maximum urgency
+  slack_comfortable_hours: 40 # slack >= this  -> minimum urgency
+  impact_exp: 1.0             # >1 weights high-value work more aggressively
+
+  # Multipliers applied on top of the base score.
+  multipliers:
+    exam: 1.6               # exams outrank homework of equal weight
+    late: 2.5               # past due but still submittable
+    hard_deadline: 1.3      # no late submissions accepted
+    in_progress: 1.15       # slight bias toward finishing what you started
+    group_work: 1.2         # others are blocked on you
+
+  # Applied when a category drops its lowest N scores. A discount, not a
+  # licence to skip -- you never know which result will be the dropped one.
+  drop_discount: 0.85
+
+  # Anything due further out than this is visible in the backlog but
+  # not scheduled unless there's leftover capacity.
+  lookahead_days: 10
+
+  # Past `lookahead_days`, priority decays so distant work stops crowding out
+  # this week's. Score halves roughly every `horizon_decay_days` beyond it.
+  # Raise it if you want long-range projects to stay prominent.
+  horizon_decay_days: 14
+
+# --- The agent --------------------------------------------------
+# Plans and time estimates are written by an AI tool on your own account:
+# Claude (`claude`), ChatGPT (`codex`) or GitHub Copilot (`copilot`). Setup
+# records your choice as `cli` in config/prefs.local.yaml. auto = the first one
+# installed; none = no AI.
+#
+# plan_model and estimate_model are Claude model names. If your Claude plan
+# does not include Opus, set plan_model to sonnet. ChatGPT and Copilot use
+# their own default model unless you name one, in config/prefs.local.yaml:
+#   agent:
+#     codex: {plan_model: <a model name Codex accepts>}
+agent:
+  cli: auto                 # auto | claude | codex | copilot | none
+  plan_model: opus          # ./plan today
+  estimate_model: sonnet    # ./plan estimate
+
+# --- Updates ----------------------------------------------------
+# An installed copy checks for a newer version (at most once an hour, when the
+# app starts and before a sync or a plan) and installs it by itself. Your
+# classes, settings and data are never touched. Set auto to false in
+# config/prefs.local.yaml to update only when you run ./update.
+updates:
+  auto: true
+
+# Where "Report a bug" and "Request a feature" (bottom of each page) send
+# their email. Empty hides both links.
+feedback_email: jck.l.nrtn@gmail.com
+
+# --- LearningSuite sync ---------------------------------------
+learningsuite:
+  # false (default): every refresh signs in through the browser profile (one
+  #   automatic click, ~10s), then reads the pages over plain HTTP. Nothing
+  #   about the session is kept after the run.
+  # true: the session cookies are also saved to data/.ls-session.json (mode
+  #   600, gitignored) so most refreshes need no browser at all. That file is
+  #   a login to your student account -- the same sensitivity as
+  #   data/.browser-profile, which already sits beside it.
+  save_session: false
+
+  # Scheduled runs usually fire while the lid is closed. The refresh holds the
+  # Mac awake and tries anyway; if sign-in still cannot finish, it waits this
+  # long for you to open the lid and tries once more, so the morning plan is
+  # built on fresh grades (a few minutes after you open the Mac) rather than
+  # on yesterday's. 0 = never wait: carry on with the last good data at once.
+  wait_for_wake_minutes: 240

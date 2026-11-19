@@ -1,0 +1,29 @@
+# --- yours, never shared -------------------------------------------------
+# Secrets: the Canvas token and anything else in .env.
+.env
+# Everything the planner learns about you: tasks, grades, the signed-in
+# browser profile, logs. Nothing under data/ is ever committed.
+data/
+out/
+logs/
+# Your term: written by `./plan setup`. The templates are in config/examples/.
+config/courses.yaml
+config/commitments.yaml
+config/manual_assignments.yaml
+config/prefs.local.yaml
+config/*.bak-*
+# Working notes that describe one person's account.
+docs/private/
+
+# --- machine noise ---------------------------------------------------------
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.DS_Store
+*.tmp
+
+# A private Python, when the computer has none (see ./install).
+.tools/
+# Which published version this copy is (written by the updater).
+.version

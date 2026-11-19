@@ -1,0 +1,63 @@
+# ============================================================
+# YOUR FIXED WEEK -- an example. `./plan setup` writes your real one to
+# config/commitments.yaml (not in git). The planner works out how much free
+# time you have before each deadline from what is in here, so the more of
+# your real week it holds, the better the ranking.
+# ============================================================
+
+timezone: America/Denver
+
+# Used to spread a course's expected workload across the term.
+term:
+  start: 2026-09-01
+  end:   2026-12-18
+
+# Nothing is counted as free time outside wake..sleep; `wind_down` minutes
+# before sleep are kept clear.
+day:
+  wake:      "07:00"
+  sleep:     "23:00"
+  wind_down: 45
+
+# Meals are fixed blocks near these times. `flex` = minutes either side they
+# may shift to avoid colliding with a class or shift.
+meals:
+  - {name: breakfast, at: "07:30", minutes: 25, flex: 45}
+  - {name: lunch,     at: "12:30", minutes: 30, flex: 90}
+  - {name: dinner,    at: "18:15", minutes: 45, flex: 90}
+
+# Named places, for travel time between commitments.
+locations:
+  default: home
+  places: [home, campus, work]
+
+# Door-to-door minutes. List one direction; the reverse is assumed the same.
+travel:
+  default_minutes: 15
+  matrix:
+    - {from: home,   to: campus, minutes: 15}
+    - {from: campus, to: work,   minutes: 20}
+  buffer_before: 5          # slack added before anything you must not be late to
+
+# ------------------------------------------------------------
+# RECURRING BLOCKS
+# days: mon tue wed thu fri sat sun
+# kind: class | work | standing
+# `course:` ties a class to a key in courses.yaml.
+# Optional: `skip_dates: [2026-11-25]` for known exceptions.
+# ------------------------------------------------------------
+recurring:
+  - {name: "BIO 100", kind: class, course: BIO100,
+     days: [mon, wed, fri], start: "09:00", end: "09:50", location: campus}
+  - {name: "HIST 201", kind: class, course: HIST201,
+     days: [tue, thu], start: "12:30", end: "13:45", location: campus}
+
+  - {name: "Work", kind: work, days: [mon, wed],
+     start: "14:00", end: "18:00", location: work}
+
+  - {name: "Choir", kind: standing, days: [thu],
+     start: "19:00", end: "20:30", location: campus}
+
+# One-off commitments.
+one_offs: []
+  # - {name: "Dentist", date: 2026-09-14, start: "10:00", end: "11:00", location: home}

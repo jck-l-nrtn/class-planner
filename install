@@ -1,0 +1,207 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")"
+mkdir -p data logs out .tools
+LOG="$PWD/logs/install.log"
+: > "$LOG"
+# Keep the browser in this folder; other Playwright installs can wipe the shared cache.
+export PLAYWRIGHT_BROWSERS_PATH="$PWD/.tools/browsers"
+
+if [ -t 1 ] && [ "${TERM:-dumb}" != dumb ]; then
+  FANCY=1; B=$'\033[1m'; D=$'\033[2m'; G=$'\033[32m'; R=$'\033[31m'; C=$'\033[36m'; N=$'\033[0m'
+  printf '\033[?25l'
+  trap 'printf "\033[?25h"' EXIT
+else
+  FANCY=""; B=""; D=""; G=""; R=""; C=""; N=""
+fi
+
+centre () {
+  local pad=$(( (70 - ${#2}) / 2 ))
+  printf '  %s│%s%*s%s%s%s%*s%s│%s\n' "${D}" "${N}" $pad "" "$1" "$2" "${N}" \
+    $((70 - pad - ${#2})) "" "${D}" "${N}"
+}
+
+box () {
+  local copy cols row=0 line shade edge
+  copy="$(grep -m1 '^Copyright' LICENSE 2>/dev/null || true)"
+  cols="$(tput cols 2>/dev/null || echo 80)"
+  echo
+  if [ -z "$FANCY" ] || [ "$cols" -lt 76 ]; then
+    echo "  ${B}LEARNING CHEAT${N}"
+    echo "  The Smart Study Planner for BYU Students"
+    [ -n "$copy" ] && echo "  $copy"
+    echo
+    return
+  fi
+  edge="$(printf '─%.0s' $(seq 1 70))"
+  printf '  %s╭%s╮%s\n' "${D}" "$edge" "${N}"
+  printf '  %s│%s%70s%s│%s\n' "${D}" "${N}" "" "${D}" "${N}"
+  local shades=(153 117 111 75 69 63)
+  while IFS= read -r line; do
+    shade=$'\033[38;5;'"${shades[row % 6]}"'m'
+    line="${line//╗/${D}╗${N}${shade}}"; line="${line//╔/${D}╔${N}${shade}}"
+    line="${line//╝/${D}╝${N}${shade}}"; line="${line//╚/${D}╚${N}${shade}}"
+    line="${line//═/${D}═${N}${shade}}"; line="${line//║/${D}║${N}${shade}}"
+    printf '  %s│%s   %s%s%s   %s│%s\n' "${D}" "${N}" "$shade" "$line" "${N}" "${D}" "${N}"
+    row=$((row + 1))
+    [ $row = 6 ] && printf '  %s│%s%70s%s│%s\n' "${D}" "${N}" "" "${D}" "${N}"
+  done <<'ART'
+██╗     ███████╗ █████╗ ██████╗ ███╗   ██╗██╗███╗   ██╗ ██████╗ 
+██║     ██╔════╝██╔══██╗██╔══██╗████╗  ██║██║████╗  ██║██╔════╝ 
+██║     █████╗  ███████║██████╔╝██╔██╗ ██║██║██╔██╗ ██║██║  ███╗
+██║     ██╔══╝  ██╔══██║██╔══██╗██║╚██╗██║██║██║╚██╗██║██║   ██║
+███████╗███████╗██║  ██║██║  ██║██║ ╚████║██║██║ ╚████║╚██████╔╝
+╚══════╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝╚═╝╚═╝  ╚═══╝ ╚═════╝ 
+            ██████╗██╗  ██╗███████╗ █████╗ ████████╗            
+           ██╔════╝██║  ██║██╔════╝██╔══██╗╚══██╔══╝            
+           ██║     ███████║█████╗  ███████║   ██║               
+           ██║     ██╔══██║██╔══╝  ██╔══██║   ██║               
+           ╚██████╗██║  ██║███████╗██║  ██║   ██║               
+            ╚═════╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝   ╚═╝               
+ART
+  printf '  %s│%s%70s%s│%s\n' "${D}" "${N}" "" "${D}" "${N}"
+  centre "${B}" "The Smart Study Planner for BYU Students"
+  [ -n "$copy" ] && centre "${D}" "$copy"
+  printf '  %s│%s%70s%s│%s\n' "${D}" "${N}" "" "${D}" "${N}"
+  printf '  %s╰%s╯%s\n' "${D}" "$edge" "${N}"
+  echo
+}
+
+ITEMS=()
+item () { ITEMS+=("$1"); }
+
+draw () {
+  local up=$(( ${#ITEMS[@]} - $1 )) plain
+  plain="$(printf %s "${ITEMS[$1]}" | sed $'s/\033\\[[0-9;]*m//g')"
+  printf '\033[%dA\r\033[K  %s %s%*s%s\033[%dB\r' "$up" "$2" "${ITEMS[$1]}" \
+    $(( ${#plain} < 32 ? 32 - ${#plain} : 0 )) "" "${3:-}" "$up"
+}
+
+bar () {
+  local full=$(( $1 / 5 )) on off
+  on="$(printf '━%.0s' $(seq 1 $full) 2>/dev/null)"; [ "$full" = 0 ] && on=""
+  off="$(printf '━%.0s' $(seq 1 $((20 - full))) 2>/dev/null)"; [ "$full" = 20 ] && off=""
+  printf '%s%s%s%s%s %3d%%' "${C}" "$on" "${D}" "$off" "${N}" "$1"
+}
+
+grown () {
+  local kb
+  kb="$(du -sk "$1" 2>/dev/null | cut -f1)"; kb=$(( ${kb:-0} - ${3:-0} ))
+  [ "$kb" -lt 0 ] && kb=0
+  echo $(( kb * 100 / $2 > 99 ? 99 : kb * 100 / $2 ))
+}
+progress_python () { grown .tools/python 70000; }
+progress_packages () { grown .venv 190000 8000; }
+progress_browser () {
+  local dl
+  if grep -q 'FFmpeg' "$LOG"; then dl=100
+  else dl="$(grep -o '[0-9]*% of' "$LOG" | tail -n 1 | grep -o '^[0-9]*' || true)"; fi
+  echo $(( (${dl:-0} * 70 + $(grown .tools/browsers 390000) * 30) / 100 ))
+}
+
+PID=""
+run () {
+  local i=$1 probe=$2; shift 2
+  if [ -z "$FANCY" ]; then
+    printf '  %s ... ' "${ITEMS[$i]}"
+    if "$@" >>"$LOG" 2>&1 </dev/null; then echo done; else echo failed; failed; fi
+    return
+  fi
+  "$@" >>"$LOG" 2>&1 </dev/null &
+  PID=$!
+  trap 'kill $PID 2>/dev/null; printf "\033[?25h\n"; exit 130' INT
+  local f=(⠋ ⠙ ⠹ ⠸ ⠼ ⠴ ⠦ ⠧ ⠇ ⠏) n=0 start=$SECONDS t pct=0 shown
+  while kill -0 "$PID" 2>/dev/null; do
+    t=$((SECONDS - start)); t="$((t / 60)):$(printf %02d $((t % 60)))"
+    if [ "$probe" != - ]; then
+      [ $((n % 5)) = 0 ] && pct="$($probe)"
+      shown="$(bar "$pct")  ${D}${t}${N}"
+    else
+      shown="${D}${t}${N}"
+    fi
+    draw "$i" "${C}${f[n++ % 10]}${N}" "$shown"
+    sleep 0.1
+  done
+  if wait "$PID"; then draw "$i" "${G}✓${N}"; else draw "$i" "${R}✗${N}"; failed; fi
+  trap - INT
+}
+done_ () { [ -n "$FANCY" ] && draw "$1" "${G}✓${N}" || echo "  ${ITEMS[$1]} ... done"; }
+skip () { [ -n "$FANCY" ] && draw "$1" "${D}–${N}" "${D}  (skipped)${N}" || echo "  ${ITEMS[$1]} ... skipped"; }
+
+failed () {
+  echo
+  echo "  ${R}${B}That step did not finish.${N} The last lines of what it printed:"
+  echo
+  tail -n 15 "$LOG" | sed 's/^/    /'
+  echo
+  echo "  The whole log is in $LOG"
+  echo "  Check the internet connection, then run the same command again;"
+  echo "  it picks up where it stopped."
+  exit 1
+}
+
+usable () {
+  local path
+  path="$(command -v "$1" 2>/dev/null)" || return 1
+  # Without developer tools, /usr/bin/python3 is a stub that only opens an install dialog.
+  if [ "$(uname)" = Darwin ] && [ "$path" = /usr/bin/python3 ] \
+     && ! xcode-select -p >/dev/null 2>&1; then
+    return 1
+  fi
+  "$path" -c 'import sys, venv, ensurepip; sys.exit(0 if sys.version_info >= (3, 10) else 1)' 2>/dev/null
+}
+
+PY=""; PYWHAT=have
+if [ ! -x .venv/bin/python ]; then
+  PYWHAT=private
+  if [ -z "${PLANNER_PRIVATE_PYTHON:-}" ]; then
+    for cand in python3.13 python3.12 python3.11 python3.10 python3.14 python3; do
+      if usable "$cand"; then PY="$(command -v "$cand")"; PYWHAT=system; break; fi
+    done
+  fi
+fi
+
+private_python () {
+  curl -LsSf https://astral.sh/uv/install.sh \
+    | env UV_UNMANAGED_INSTALL="$PWD/.tools" UV_NO_MODIFY_PATH=1 sh
+  UV_PYTHON_PREFERENCE=only-managed \
+  UV_PYTHON_INSTALL_DIR="$PWD/.tools/python" UV_CACHE_DIR="$PWD/.tools/cache" \
+    ./.tools/uv venv --seed --python 3.12 .venv
+  rm -rf .tools/cache
+}
+packages () {
+  ./.venv/bin/python -m pip install --upgrade pip
+  ./.venv/bin/python -m pip install -r requirements.txt
+}
+
+[ -n "${PLANNER_FROM_GET:-}" ] && item "Download Class Planner"
+case $PYWHAT in
+  have)    item "Python" ;;
+  system)  item "Python $("$PY" --version 2>&1 | cut -d' ' -f2)" ;;
+  private) item "Python 3.12" ;;
+esac
+item "Python packages"
+item "Sign-in browser ${D}(about 190 MB)${N}"
+
+box
+if [ -n "$FANCY" ]; then for it in "${ITEMS[@]}"; do echo "  ${D}○${N} $it"; done; fi
+i=0
+if [ -n "${PLANNER_FROM_GET:-}" ]; then done_ 0; i=1; fi
+case $PYWHAT in
+  have)    done_ $i ;;
+  system)  run $i - "$PY" -m venv .venv ;;
+  private) run $i progress_python private_python ;;
+esac
+run $((i + 1)) progress_packages packages
+if [ "${1:-}" = "--no-browser" ]; then
+  skip $((i + 2))
+else
+  # The sign-in window is always visible, so the headless shell is never used.
+  run $((i + 2)) progress_browser ./.venv/bin/python -m playwright install --no-shell chromium
+fi
+echo
+
+if [ -z "${PLANNER_FROM_GET:-}" ]; then
+  echo "  ${G}${B}Installed.${N} Open it with:  ./plan app"
+  echo
+fi

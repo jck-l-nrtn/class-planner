@@ -1,0 +1,86 @@
+# ============================================================
+# COURSES -- an example. `./plan setup` writes your real one to
+# config/courses.yaml (not in git) by reading Canvas and LearningSuite.
+# Everything below `key`/`name` is optional; this file shows what you can add.
+# ============================================================
+
+courses:
+  # A course that lives in Canvas. Weights come from Canvas itself.
+  - key: BIO100                      # short handle; also used in commitments.yaml
+    name: "BIO 100-003: Principles of Biology"
+    credits: 3
+    canvas_id: 12345                 # `./plan courses` lists yours
+    ls_course_id: null
+    weights: {}
+    effort: {}
+
+  # A course that lives in LearningSuite. Weights come from its gradebook.
+  - key: HIST201
+    name: "HIST 201 (004) - World Civilization to 1500"
+    credits: 3
+    canvas_id: null
+    ls_course_id: "AbCdEfGh1234"     # the part after `cid-` in the course URL
+
+    # Minutes of work per category, used until the agent has estimated a task
+    # and until your own logged time takes over. Category names are matched
+    # loosely against the gradebook's ("quiz" matches "Reading Quizzes").
+    effort:
+      quiz: 30
+      essay: 240
+      exams: 300
+
+    # How many days before an exam its priority starts ramping up.
+    exam_ramp_days: 7
+
+    # Required work that is never graded (so it has no gradebook row) but shows
+    # on the course schedule, e.g. a reading to finish before each class. The
+    # planner reads the schedule feed, groups events by "Topic N", and makes one
+    # prep task per topic. See src/sources/ls_prep.py.
+    # prep_tasks:
+    #   label: "Topic Overview"
+    #   match: "topic overview"      # schedule text that marks a prep item
+    #   class_start: "10:00"         # the real deadline: start of class
+    #   lead_days: 2                 # aim to finish this many days earlier
+    #   est_minutes: 90
+    #   weight: 0.075                # stand-in share of the grade, split across topics
+
+  # A course with no gradebook the planner can read. It knows the schedule from
+  # the iCal feed and uses the weights you give it. Feed URLs go in .env, since
+  # anyone holding one can read the schedule:  MATH112_ICS=https://...
+  - key: MATH112
+    name: "MATH 112 - Calculus 1"
+    credits: 4
+    canvas_id: null
+    ls_course_id: null
+    ls_ics_url: "${MATH112_ICS}"
+    weights:                          # fractions of the final grade
+      homework: 0.20
+      quizzes: 0.15
+      exams: 0.65
+    effort:
+      homework: 90
+      quizzes: 30
+      exams: 300
+
+# ------------------------------------------------------------
+# Fallbacks for any course or category not covered above.
+# `./plan setup` copies this block into your courses.yaml.
+# ------------------------------------------------------------
+defaults:
+  # Weight given to a category that appears in a source but isn't listed in a
+  # course's `weights` map (ungraded readings, practice sets, announcements).
+  # Deliberately small: unlisted usually means low-stakes.
+  unlisted_category_weight: 0.03
+
+  weights:
+    homework: 0.40
+    quizzes: 0.10
+    exams: 0.40
+    project: 0.10
+  effort:
+    homework: 120
+    quizzes: 45
+    exams: 300
+    project: 360
+    reading: 40
+  exam_ramp_days: 7

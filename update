@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")"
+if [ -d .git ]; then
+  echo "This copy is a git checkout; update it with: git pull"
+  exit 0
+fi
+if [ -x ./.venv/bin/python ] && [ -f src/updater.py ]; then
+  exec ./plan update
+fi
+curl -fsSL https://github.com/jck-l-nrtn/learning-cheat/archive/refs/heads/main.tar.gz \
+  | tar -xz -C . --strip-components 1
+./install
+echo "Up to date."

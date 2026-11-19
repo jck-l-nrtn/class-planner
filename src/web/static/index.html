@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>LEARNING CHEAT</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ctext x='16' y='27' font-size='28' text-anchor='middle'%3E%F0%9F%98%88%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<header class="hd">
+  <button type="button" class="burger" id="burger" data-drawer aria-controls="drawer" aria-expanded="false" aria-label="Menu">
+    <svg viewBox="0 0 18 16" aria-hidden="true"><path d="M1 2.5h16M1 8h16M1 13.5h16" stroke="currentColor" stroke-width="1.4"/></svg>
+  </button>
+  <span class="logo">
+    <span class="mark" aria-hidden="true">😈</span>
+    <span class="wordmark"><span>LEARNING</span><span>CHEAT</span></span>
+  </span>
+  <div class="ctx"><span class="term" id="term"></span><span class="ctx-name" id="ctx-name"></span></div>
+  <div class="user">
+    <span class="synced" id="synced"></span>
+    <span class="jobs">
+      <button type="button" class="btn job" data-job="sync">Sync</button>
+      <button type="button" class="btn job" data-job="ls_refresh" title="Refresh LearningSuite grades">Grades</button>
+      <button type="button" class="btn job" data-job="replan">Replan</button>
+    </span>
+  </div>
+</header>
+
+<div class="drawer" id="drawer">
+  <nav class="tabs" role="tablist" aria-label="Views">
+    <button type="button" role="tab" id="tab-today" data-tab="today" aria-controls="view-today" aria-selected="true">Today</button>
+    <button type="button" role="tab" id="tab-upcoming" data-tab="upcoming" aria-controls="view-upcoming" aria-selected="false">Upcoming</button>
+    <button type="button" role="tab" id="tab-attention" data-tab="attention" aria-controls="view-attention" aria-selected="false">Needs attention <span class="count" id="att-badge" hidden></span></button>
+    <a class="tablink" href="/settings">Settings</a>
+  </nav>
+  <aside class="side" id="side"></aside>
+</div>
+<div class="scrim" id="scrim" data-drawer hidden></div>
+
+<main>
+  <div id="offline" class="banner danger" role="alert" hidden>
+    <span>Can't reach the planner.</span>
+    <button type="button" class="btn" data-act="retry">Retry</button>
+  </div>
+  <div id="job-error" class="panel-error" role="alert" hidden></div>
+  <section id="view-today" role="tabpanel" aria-labelledby="tab-today" class="view"></section>
+  <section id="view-upcoming" role="tabpanel" aria-labelledby="tab-upcoming" class="view" hidden></section>
+  <section id="view-attention" role="tabpanel" aria-labelledby="tab-attention" class="view" hidden></section>
+  <div id="loading" class="loading" role="status" aria-label="Loading">
+    <div class="sk sk-h1"></div><div class="sk sk-line"></div><div class="sk sk-line short"></div>
+    <div class="sk sk-band"></div><div class="sk sk-row"></div><div class="sk sk-row"></div><div class="sk sk-row"></div>
+    <div class="sk sk-band"></div><div class="sk sk-row"></div><div class="sk sk-row"></div>
+  </div>
+  <footer id="feedback" class="feedback" hidden>
+    <p><strong>Beta.</strong> <a id="fb-bug" href="#">Report a bug</a> · <a id="fb-idea" href="#">Request a feature</a>
+    <span class="fb-alt">(opens your email; or write to <span id="fb-addr"></span>)</span></p>
+  </footer>
+</main>
+
+<div id="toasts" class="toasts" aria-live="polite" aria-atomic="false"></div>
+<script src="app.js"></script>
+<script src="feedback.js"></script>
+</body>
+</html>

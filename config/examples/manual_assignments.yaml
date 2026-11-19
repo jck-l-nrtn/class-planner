@@ -1,0 +1,19 @@
+# Hand-entered assignments -- an example. Copy to config/manual_assignments.yaml
+# (not in git) if a course keeps its real deadlines somewhere the planner
+# cannot read: a syllabus PDF, a schedule table, a slide.
+#
+# `weight` is that category's fraction of the final grade; it is split evenly
+# across the assignments listed in the category. Times are local.
+#
+# When the real gradebook row for one of these appears later (same title, or
+# the same kind and number within a day and a half of the due date), the
+# planner merges them and keeps your time log, status and estimate.
+
+HIST201:
+  categories:
+    "Reading Quiz": {weight: 0.10, kind: quizzes, est_minutes: 30}
+    "Midterm":      {weight: 0.25, kind: exams,   est_minutes: 300}
+  assignments:
+    - {title: "Ch 2 Reading Quiz", category: "Reading Quiz", due: "2026-09-10 12:30"}
+    - {title: "Ch 3 Reading Quiz", category: "Reading Quiz", due: "2026-09-15 12:30"}
+    - {title: "Midterm",           category: "Midterm",      due: "2026-10-20 23:59"}
