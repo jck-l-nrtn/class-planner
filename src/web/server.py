@@ -6,17 +6,18 @@ import mimetypes
 import subprocess
 import threading
 import webbrowser
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-from .. import daily, health, journal, sync
+from .. import calendars, daily, health, journal, settings_edit, sync
 from . import setup_api
 from ..config import Config, OUT_DIR, ROOT
 from ..model import Status
 from ..prioritize import score_all
 from ..store import Store, read_events
+from ..timeline import free_minutes
 from ..workload import calibration
 from ..dates import fmt
 
@@ -92,7 +93,8 @@ def state() -> dict:
     today = cfg.now().date()
     open_tasks = store.open_tasks()
     calib = calibration(cfg, store, open_tasks, today)
-    scored = score_all(cfg, open_tasks, calibration=calib)
+    busy = calendars.busy_by_day(cfg, today)
+    scored = score_all(cfg, open_tasks, external_by_day=busy, calibration=calib)
 
     rows, by_uid, hidden = [], {}, 0
     for s in scored:
@@ -144,6 +146,8 @@ def state() -> dict:
         "now": cfg.now().isoformat(),
         "today": today.isoformat(),
         "plan": plan,
+        "calendar": calendars.meta(cfg),
+        "free_today": free_minutes(cfg, today, busy.get(today)),
         "tasks": rows,
         "courses": sorted({r["course"] for r in rows}),
         "hidden_attendance": hidden,
@@ -215,6 +219,87 @@ def task_action(data: dict) -> dict:
     return {"ok": True}
 
 
+def calendar_range(start: str, days: str) -> dict:
+    try:
+        first = date.fromisoformat(start)
+    except ValueError:
+        first = None
+    return calendars.view(Config(), first, int(days) if days.isdigit() else 7)
+
+
+def _week_action(action: str, data: dict) -> None:
+    section = "meals" if data.get("section") == "meals" else "recurring"
+    i, was = data.get("i"), data.get("was") if isinstance(data.get("was"), dict) else {}
+    change = lambda c: settings_edit.edit_week(i, was, c, section)
+    if action == "week_update":
+        return change(data)
+    if action == "week_skip":
+        return change({"skip": data.get("on")})
+    if action == "week_delete":
+        return change({"delete": True})
+    on = settings_edit._day(data.get("on"))
+    if action == "week_detach":
+        one = {"name": was.get("name"), "date": data.get("date") or on,
+               "start": data.get("start"), "end": data.get("end")}
+        calendars._clean_block(one)
+        change({"skip": on})
+        calendars.add_block(one)
+        return
+    tail = None
+    if data.get("start"):
+        tail = {"name": was.get("name"), "start": data.get("start"), "end": data.get("end"),
+                "days": data.get("days") if section == "recurring" else list(settings_edit.DAYS),
+                "from": on}
+        calendars._clean_block(tail)
+    change({"until": (date.fromisoformat(on) - timedelta(days=1)).isoformat()})
+    if tail:
+        calendars.add_block(tail)
+
+
+def calendar_action(data: dict) -> dict:
+    action = data.get("action")
+    try:
+        if action == "add_block":
+            calendars.add_block(data)
+        elif action == "update_block":
+            calendars.update_block(data.get("id"), data)
+        elif action == "skip_block":
+            calendars.skip_block(data.get("id"), data.get("on"))
+        elif action == "detach_block":
+            calendars.detach_block(data.get("id"), data.get("on"), data)
+        elif action == "set_blocks":
+            calendars.set_blocks(data.get("blocks"))
+        elif action == "split_block":
+            calendars.split_block(data.get("id"), data.get("on"),
+                                  data if data.get("start") else None)
+        elif action in ("week_update", "week_skip", "week_delete", "week_detach", "week_split"):
+            _week_action(action, data)
+        elif action == "week_undo":
+            if not settings_edit.undo_week():
+                return {"ok": False, "error": "Your week changed since then, so it was left alone."}
+            if "blocks" in data:
+                calendars.set_blocks(data.get("blocks"))
+        elif action == "add_link":
+            calendars.add_link(data.get("name"), data.get("url"))
+        elif action == "remove_block":
+            if not calendars.remove_block(data.get("id")):
+                return {"ok": False, "error": "that entry is already gone"}
+        elif action == "remove_link":
+            if not calendars.remove_link(data.get("id")):
+                return {"ok": False, "error": "that calendar is already gone"}
+        elif action == "start":
+            calendars.start()
+        elif action == "refresh":
+            failed = [r for r in calendars.refresh() if not r["ok"]]
+            if failed:
+                return {"ok": False, "error": f"{failed[0]['name']}: {failed[0]['error']}"}
+        else:
+            return {"ok": False, "error": f"unknown action {action!r}"}
+    except (calendars.Invalid, settings_edit.Invalid) as e:
+        return {"ok": False, "error": str(e)}
+    return {"ok": True}
+
+
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, *a):
         pass
@@ -250,6 +335,9 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(setup_api.state())
             if url.path == "/api/state":
                 return self._send(state())
+            if url.path == "/api/calendar":
+                q = parse_qs(url.query)
+                return self._send(calendar_range(q.get("start", [""])[0], q.get("days", ["7"])[0]))
             if url.path == "/api/feedback":
                 from .. import feedback
                 return self._send(feedback.links())
@@ -285,6 +373,9 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(res, code)
             if path == "/api/task":
                 res = task_action(data)
+                return self._send(res, 200 if res["ok"] else 400)
+            if path == "/api/calendar":
+                res = calendar_action(data)
                 return self._send(res, 200 if res["ok"] else 400)
             if path == "/api/note":
                 try:

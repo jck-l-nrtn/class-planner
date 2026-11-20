@@ -346,3 +346,145 @@ def apply(changes: dict) -> dict:
         raise Invalid({"save": f"Nothing was changed: the result could not be read back "
                                f"({type(e).__name__}: {str(e)[:160]})."}) from e
     return {"changed": did, "backups": [bak.name for _, bak in written]}
+
+
+_undo: dict = {}
+
+
+def _dates(value) -> list[str]:
+    return sorted(str(x) for x in value or [])
+
+
+def week_rows() -> list[dict]:
+    """The weekly entries of commitments.yaml, each with its position in the file."""
+    out = []
+    for i, r in enumerate(_plain("commitments.yaml").get("recurring") or []):
+        if not isinstance(r, dict) or str(r.get("name", "")).startswith("EXAMPLE"):
+            continue
+        days, start, end = _days(r.get("days")), hhmm(r.get("start")), hhmm(r.get("end"))
+        if days and start and end:
+            out.append({"i": i, "name": str(r.get("name") or ""),
+                        "kind": r.get("kind") or "standing", "days": days,
+                        "start": start, "end": end, "skip": _dates(r.get("skip_dates")),
+                        "until": str(r.get("until") or "")})
+    return out
+
+
+def meal_rows() -> list[dict]:
+    out = []
+    for i, m in enumerate(_plain("commitments.yaml").get("meals") or []):
+        if not isinstance(m, dict):
+            continue
+        start = hhmm(m.get("at"))
+        try:
+            end = int(start[:2]) * 60 + int(start[3:]) + int(m.get("minutes"))
+        except (TypeError, ValueError):
+            continue
+        if start and end < 1440:
+            out.append({"i": i, "name": str(m.get("name") or "").title(), "start": start,
+                        "end": hhmm(end), "skip": _dates(m.get("skip_dates")),
+                        "until": str(m.get("until") or "")})
+    return out
+
+
+def _key_edit(text: str, row, key: str, value: str) -> tuple[int, int, str]:
+    """Set `key` on one entry, adding it in the entry's own style if it is not there."""
+    node = _child(row, key)
+    if node is not None and node.start_mark.index != node.end_mark.index:
+        return node.start_mark.index, _true_end(node), value
+    if row.flow_style:
+        at = row.end_mark.index - 1
+        if text[at] != "}":
+            raise Invalid({"save": "Could not change that entry; edit the file by hand."})
+        return at, at, f", {key}: {value}"
+    at = _line_end(text, _true_end(row))
+    return at, at, "\n" + " " * row.value[0][0].start_mark.column + f"{key}: {value}"
+
+
+def _day(value) -> str:
+    try:
+        return date.fromisoformat(str(value)).isoformat()
+    except ValueError:
+        raise Invalid({"save": "Pick the date."}) from None
+
+
+def edit_week(index, was: dict, change: dict, section: str = "recurring") -> None:
+    """Change one entry of `recurring` or `meals` in place.
+
+    change is {"delete": True}, {"skip": date}, {"until": date} or new days/start/end.
+    """
+    meals = section == "meals"
+    read = meal_rows if meals else week_rows
+    path = _path("commitments.yaml")
+    old = path.read_text(encoding="utf-8")
+    row = next((r for r in read() if r["i"] == index), None)
+    was = was if isinstance(was, dict) else {}
+    if not row or (row["name"], row["start"], row["end"]) != (
+            was.get("name"), was.get("start"), was.get("end")):
+        raise Invalid({"save": "Your week changed since this page loaded. Reload it."})
+    seq = _child(yaml.compose(old), "meals" if meals else "recurring")
+    node = seq.value[index]
+    want, gone, edits = dict(row), False, []
+    if change.get("delete"):
+        if seq.flow_style or (not meals and len(seq.value) <= 1):
+            raise Invalid({"save": "That one can only be removed in config/commitments.yaml."})
+        edits.append((_line_start(old, node.start_mark.index),
+                      min(_line_end(old, _true_end(node)) + 1, len(old)), ""))
+        gone = True
+    elif change.get("skip"):
+        want["skip"] = sorted({*row["skip"], _day(change["skip"])})
+        edits.append(_key_edit(old, node, "skip_dates", "[" + ", ".join(want["skip"]) + "]"))
+    elif change.get("until"):
+        want["until"] = _day(change["until"])
+        edits.append(_key_edit(old, node, "until", want["until"]))
+    else:
+        errors: dict[str, str] = {}
+        meets = clean_meets({"days": change.get("days") or row.get("days") or list(DAYS),
+                             "start": change.get("start") or row["start"],
+                             "end": change.get("end") or row["end"]}, "save", errors)
+        if errors or not meets:
+            raise Invalid(errors or {"save": "Pick the days and times."})
+        want.update({k: meets[k] for k in ("start", "end")})
+        if meals:
+            minutes = (int(want["end"][:2]) * 60 + int(want["end"][3:])
+                       - int(want["start"][:2]) * 60 - int(want["start"][3:]))
+            if want["start"] != row["start"]:
+                edits.append(_scalar(_child(node, "at"), f'"{want["start"]}"', "at"))
+            if (want["start"], want["end"]) != (row["start"], row["end"]):
+                edits.append(_scalar(_child(node, "minutes"), str(minutes), "minutes"))
+        else:
+            want["days"] = meets["days"]
+            if want["days"] != row["days"]:
+                edits.append(_days_edit(_child(node, "days"), want["days"], "days"))
+            for f in ("start", "end"):
+                if want[f] != row[f]:
+                    edits.append(_scalar(_child(node, f), f'"{want[f]}"', f))
+    new = _splice(old, edits)
+    if new == old:
+        return
+    count = len(read())
+    bak = path.with_name(f"{path.name}.bak-{time.strftime('%Y%m%d')}")
+    if not bak.exists():
+        shutil.copy2(path, bak)
+    config.write_atomic(path, new)
+    try:
+        config.Config()
+        after = read()
+        ok = len(after) == count - 1 if gone else \
+            next((r for r in after if r["i"] == index), None) == want
+        if not ok:
+            raise ValueError("it did not read back as intended")
+    except Exception as e:
+        config.write_atomic(path, old)
+        raise Invalid({"save": f"Nothing was changed ({str(e)[:120]})."}) from e
+    _undo.update(before=old, after=new)
+
+
+def undo_week() -> bool:
+    """Put commitments.yaml back as it was before the last calendar change, if untouched since."""
+    path = _path("commitments.yaml")
+    if not _undo or path.read_text(encoding="utf-8") != _undo["after"]:
+        return False
+    config.write_atomic(path, _undo["before"])
+    _undo.clear()
+    return True

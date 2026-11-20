@@ -32,6 +32,7 @@
   <nav class="tabs" role="tablist" aria-label="Views">
     <button type="button" role="tab" id="tab-today" data-tab="today" aria-controls="view-today" aria-selected="true">Today</button>
     <button type="button" role="tab" id="tab-upcoming" data-tab="upcoming" aria-controls="view-upcoming" aria-selected="false">Upcoming</button>
+    <button type="button" role="tab" id="tab-calendar" data-tab="calendar" aria-controls="view-calendar" aria-selected="false">Calendar</button>
     <button type="button" role="tab" id="tab-attention" data-tab="attention" aria-controls="view-attention" aria-selected="false">Needs attention <span class="count" id="att-badge" hidden></span></button>
     <a class="tablink" href="/settings">Settings</a>
   </nav>
@@ -47,6 +48,7 @@
   <div id="job-error" class="panel-error" role="alert" hidden></div>
   <section id="view-today" role="tabpanel" aria-labelledby="tab-today" class="view"></section>
   <section id="view-upcoming" role="tabpanel" aria-labelledby="tab-upcoming" class="view" hidden></section>
+  <section id="view-calendar" role="tabpanel" aria-labelledby="tab-calendar" class="view" hidden></section>
   <section id="view-attention" role="tabpanel" aria-labelledby="tab-attention" class="view" hidden></section>
   <div id="loading" class="loading" role="status" aria-label="Loading">
     <div class="sk sk-h1"></div><div class="sk sk-line"></div><div class="sk sk-line short"></div>
@@ -61,6 +63,7 @@
 
 <div id="toasts" class="toasts" aria-live="polite" aria-atomic="false"></div>
 <script src="app.js"></script>
+<script src="calendar.js"></script>
 <script src="feedback.js"></script>
 </body>
 </html>

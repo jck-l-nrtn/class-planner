@@ -4,12 +4,12 @@ from __future__ import annotations
 import json
 from datetime import date, datetime, time
 
-from . import agent, journal
+from . import agent, calendars, journal
 from .config import OUT_DIR, write_atomic
 from .content import ContentStore
 from .prioritize import score_all
 from .store import Store
-from .timeline import build_day, free_intervals
+from .timeline import free_minutes
 from .workload import calibration
 from .dates import fmt
 
@@ -138,10 +138,11 @@ def nearest_days(c: dict) -> int | None:
     return min(ds) if ds else None
 
 
-def candidates(cfg, day: date, store: Store, dismissed: set[str]) -> list[dict]:
+def candidates(cfg, day: date, store: Store, dismissed: set[str],
+               busy: dict | None = None) -> list[dict]:
     calib = calibration(cfg, store, store.open_tasks(), day)
     scored = score_all(cfg, store.open_tasks(), now=cfg.at(day, time(6, 0)),
-                       calibration=calib)
+                       external_by_day=busy, calibration=calib)
     content = ContentStore()
     rows = []
     for s in scored:
@@ -259,9 +260,10 @@ def run(cfg, day: date | None = None, model: str = "opus", timeout: int = 300,
     previous = read_plan(day) or {}
     dismissed = set(previous.get("dismissed", []))
 
-    fixed, _ = build_day(cfg, day)
-    free = sum(i.minutes for i in free_intervals(cfg, day, fixed) if i.minutes >= 30)
-    cands = candidates(cfg, day, store, dismissed)
+    calendars.refresh(max_age_minutes=15, timeout=10)
+    busy = calendars.busy_by_day(cfg, day)
+    free = free_minutes(cfg, day, busy.get(day))
+    cands = candidates(cfg, day, store, dismissed, busy)
     if not cands:
         out(f"{fmt(day, '%A %b %-d')}: nothing open to plan.")
         write_plan(day, {"date": day.isoformat(), "generated_at": cfg.now().isoformat(),

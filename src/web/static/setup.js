@@ -187,7 +187,7 @@
         <select id="us${n}"><option value="both">Both</option><option value="canvas">Canvas only</option><option value="learningsuite">LearningSuite only</option></select></div>
       <div class="field f-credits"><label for="cr${n}">Credits</label>
         <input type="number" id="cr${n}" min="0.5" max="12" step="0.5" inputmode="decimal"><p class="err" id="cre${n}" role="alert"></p></div>
-      <fieldset class="field f-meets"><legend>When it meets</legend>
+      <fieldset class="field f-meets"${SETTINGS ? " hidden" : ""}><legend>When it meets</legend>
         <div class="meet">
           <span class="days">${DAYS.map(([d, short, long]) => `<label class="day" title="${long}"><input type="checkbox" value="${d}" aria-label="${long}"><span>${short}</span></label>`).join("")}</span>
           <span class="times"><input type="time" id="ms${n}" aria-label="Starts at"> <span class="to">to</span> <input type="time" id="me${n}" aria-label="Ends at"></span>
@@ -209,7 +209,7 @@
     });
 
     r.getMeets = () => {
-      if (r.locked) return undefined;
+      if (r.locked || SETTINGS) return undefined;
       const days = r.days.filter((d) => d.checked).map((d) => d.value);
       if (!days.length && !r.meets.value && !r.end.value) return null;
       return { days, start: r.meets.value, end: r.end.value };

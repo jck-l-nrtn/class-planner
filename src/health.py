@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
+from . import calendars
 from .ls.refresh import read_status, FIX
 from .store import Store
 
@@ -83,6 +84,14 @@ def report(cfg, store: Store | None = None) -> list[dict]:
             "detail": "" if ok else f"{st.get('state')}: {st.get('detail', '')}",
             "fix": "" if ok else FIX.get(st.get("state"), ""),
             "stale": age is None or age > STALE_HOURS["learningsuite"],
+        })
+    for link in calendars.links_public():
+        age = _age_h(link["last_ok"])
+        out.append({
+            "name": f"cal:{link['id']}", "label": f"Calendar · {link['name']}",
+            "ok": link["ok"], "last_ok": ago(age), "detail": link["error"],
+            "fix": "" if link["ok"] else "Remove it on the Calendar page and add the link again.",
+            "stale": age is None or age > calendars.STALE_HOURS,
         })
     return out
 

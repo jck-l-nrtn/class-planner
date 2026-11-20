@@ -93,6 +93,7 @@ async function refresh() {
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     state.data = await r.json();
     state.hidden.clear();
+    await loadRange();
     $('#offline').hidden = true;
   } catch (e) {
     $('#offline').hidden = false;
@@ -371,9 +372,16 @@ const sumPct = rows => { const p = rows.reduce((s, t) => s + (t.impact_pct || 0)
 const TIERS = [['must_today', 'Must do today', 'sec-must'], ['important', 'Should do today', 'sec-should'], ['if_time', "If there's time", 'sec-if']];
 const liveRanked = () => state.data.plan ? state.data.plan.ranked.filter(r => !state.hidden.has(r.uid)) : [];
 
+function freeChanged() {
+  const d = state.data, p = d.plan;
+  if (!p || !p.is_today || p.free_minutes == null || d.free_today == null) return '';
+  if (Math.abs(p.free_minutes - d.free_today) < 15) return '';
+  return `<div class="banner"><span>Free today: ${fmtMin(d.free_today)}. Plan used ${fmtMin(p.free_minutes)}.</span>${planBtn('Replan')}</div>`;
+}
+
 function renderToday() {
   const d = state.data, p = d.plan, td = todayDate();
-  let m = `<h2 class="sec">Plan: ${WDL[td.getDay()]}, ${MO[td.getMonth()]} ${td.getDate()}</h2>`;
+  let m = `<h2 class="sec">Plan: ${WDL[td.getDay()]}, ${MO[td.getMonth()]} ${td.getDate()}</h2>` + freeChanged();
   if (!p) {
     m += `<div class="empty"><p class="empty-title">No plan for today yet.</p>${planBtn()}</div>`;
   } else {
@@ -416,7 +424,7 @@ function renderToday() {
   return `<h1>Today</h1><div class="dash"><div class="dash-main">${m}</div><div class="dash-side">${s}</div></div>`;
 }
 
-const planBtn = () => `<button type="button" class="btn go" data-job="replan" ${state.jobs.replan ? 'disabled aria-busy="true"' : ''}>Plan today</button>`;
+const planBtn = (label = 'Plan today') => `<button type="button" class="btn go" data-job="replan" ${state.jobs.replan ? 'disabled aria-busy="true"' : ''}>${label}</button>`;
 
 function notesBox() {
   const notes = (state.data.notes || []).slice().reverse();
@@ -656,14 +664,15 @@ function setDrawer(open, refocus) {
 function closeDrawerAfterPick() { if (state.drawer) setDrawer(false, true); }
 mqNarrow.addEventListener('change', () => { state.drawer = false; syncDrawer(); });
 
-const VIEWS = { today: renderToday, upcoming: renderUpcoming, attention: renderAttention };
-const SIDES = { today: sideToday, upcoming: sideUpcoming, attention: sideAttention };
+const VIEWS = { today: renderToday, upcoming: renderUpcoming, calendar: () => renderCalendar(), attention: renderAttention };
+const SIDES = { today: sideToday, upcoming: sideUpcoming, calendar: () => sideCalendar(), attention: sideAttention };
 
 function renderHeader() {
   const td = todayDate();
   $('#term').textContent = termLabel(td);
   const [view, more] = state.tab === 'today' ? ['Today', fmtBand(td)]
-    : state.tab === 'upcoming' ? ['Upcoming', state.filters.course || 'All courses'] : ['Needs attention', ''];
+    : state.tab === 'upcoming' ? ['Upcoming', state.filters.course || 'All courses']
+      : state.tab === 'calendar' ? ['Calendar', ''] : ['Needs attention', ''];
   $('#ctx-name').innerHTML = esc(view) + (more ? `<span class="ctx-more"> – ${esc(more)}</span>` : '');
   const synced = lastSynced();
   $('#synced').textContent = synced ? `Last synced ${synced}` : '';
@@ -690,9 +699,22 @@ function render() {
   badge.setAttribute('aria-label', `${n} to review`);
   renderHeader();
   $('#side').innerHTML = SIDES[state.tab]();
-  $('#view-' + state.tab).innerHTML = VIEWS[state.tab]();
+  keepFields(() => { $('#view-' + state.tab).innerHTML = VIEWS[state.tab](); });
+  if (state.tab === 'calendar') placePop();
   renderJobs();
   spy();
+}
+
+function keepFields(draw) {
+  const was = {}, at = document.activeElement && document.activeElement.dataset ? document.activeElement.dataset.keep : null;
+  const each = fn => document.querySelectorAll('[data-keep]').forEach(fn);
+  each(el => { was[el.dataset.keep] = el.type === 'checkbox' ? el.checked : el.value; });
+  draw();
+  each(el => {
+    if (!(el.dataset.keep in was)) return;
+    if (el.type === 'checkbox') el.checked = was[el.dataset.keep]; else el.value = was[el.dataset.keep];
+    if (el.dataset.keep === at) el.focus();
+  });
 }
 
 function focusForm() {

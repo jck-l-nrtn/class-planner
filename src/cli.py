@@ -32,8 +32,11 @@ def cmd_courses(cfg, args):
 
 
 def cmd_sync(cfg, args):
-    from . import sync
-    return sync.run(cfg)[0]
+    from . import calendars, sync
+    code = sync.run(cfg)[0]
+    for r in calendars.refresh():
+        print(f"Calendar {r['name']}: " + ("ok" if r["ok"] else f"FAILED, {r['error']}"))
+    return code
 
 
 def cmd_ls_refresh(cfg, args):
@@ -135,8 +138,10 @@ def _scored(cfg, store):
     from .prioritize import score_all
     from .workload import calibration
     tasks = store.open_tasks()
+    from . import calendars
     calib = calibration(cfg, store, tasks, cfg.now().date())
-    return score_all(cfg, tasks, calibration=calib)
+    return score_all(cfg, tasks, external_by_day=calendars.busy_by_day(cfg),
+                     calibration=calib)
 
 
 def cmd_tasks(cfg, args):

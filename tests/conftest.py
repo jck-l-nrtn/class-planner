@@ -101,4 +101,5 @@ def cfg(tmp_path, monkeypatch):
     (d / "prefs.yaml").write_text(yaml.safe_dump(PREFS, sort_keys=False))
     monkeypatch.setattr(config, "CONFIG_DIR", d)
     monkeypatch.setattr(config, "ROOT", tmp_path)
+    monkeypatch.setattr(config, "DATA_DIR", tmp_path / "data")
     return config.Config()

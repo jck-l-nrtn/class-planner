@@ -68,8 +68,14 @@ Today is the plan. Upcoming is everything still open, in order. Needs attention
 is where problems go: a login that expired, an assignment that vanished from the
 gradebook, things you marked done by hand.
 
-Settings, next to those tabs, is where you change things later: when a class
-meets, how many credits it is, when you get up and go to bed, the term dates,
+Calendar is your day, week or month and the free time in each day. Connect
+Google Calendar, Outlook or iCloud with the calendar's private link, or add busy
+times by hand: drag on an empty spot to add one, drag it to move or resize, click
+it to edit or delete. Classes and work move the same way. All-day events don't
+count as busy.
+
+Settings, next to those tabs, is where you change things later: how many
+credits a class is, when you get up and go to bed, the term dates,
 your Canvas token and which AI writes the plan. It changes only the value you
 edited in your files and keeps a copy of the file as it was. For a new term, or
 to track different courses, run setup again from the link at the bottom of that
@@ -120,8 +126,8 @@ treated the same.
 
 Urgency comes from slack, which is the free time you have before the deadline
 minus the work left on it, minus the hours you already owe to things ranked
-above it. Free time is whatever is left in your week after classes, work, meals
-and sleep. With 40 or more hours of slack, urgency is nearly zero. At zero
+above it. Free time is whatever is left in your week after classes, work, meals,
+sleep and whatever is on your calendar. With 40 or more hours of slack, urgency is nearly zero. At zero
 slack it's at its maximum. Exams also ramp up on their own in the week before,
 so a big one doesn't sit at the bottom of the list until the night before.
 
@@ -247,13 +253,16 @@ titles and descriptions, and how much free time you have, do get sent to Claude,
 ChatGPT or GitHub Copilot, whichever you chose, when it writes the estimates and
 the plan. That's the same as if you pasted them into a chat.
 
+A linked calendar's private link is kept in `data/calendar.json`. Anyone with
+that link can read the calendar. Event names are never sent to the AI.
+
 Some things live outside the folder: the AI tool and its sign-in (in your home
 folder; Copilot also keeps one in your Keychain), the three timers for automatic
 runs (in `~/Library/LaunchAgents`), and the small "Sign in to ..." file the
 setup page opens in Terminal (in your temporary folder).
 
 The planner talks to Canvas, LearningSuite and BYU's sign-in (with Duo), the AI
-company you chose, and GitHub for updates. While installing it also downloads
+company you chose, GitHub for updates, and the server of any calendar you link. While installing it also downloads
 from astral.sh (Python, only if needed), pypi.org (packages) and Playwright's
 download server (the browser).
 

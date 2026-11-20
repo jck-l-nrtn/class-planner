@@ -6,16 +6,25 @@ from datetime import datetime, date, time, timedelta
 from .config import DAY_INDEX, parse_hhmm
 from .model import Block, Interval
 
+MIN_GAP = 30
+
+
+def _off(row: dict, day: date) -> bool:
+    """Skipped on this date, or the entry ended before it."""
+    iso = day.isoformat()
+    return iso in [str(x) for x in (row.get("skip_dates") or [])] \
+        or bool(row.get("until")) and iso > str(row["until"])
+
 
 def expand_recurring(cfg, day: date) -> list[Block]:
     blocks: list[Block] = []
     dow = day.weekday()
-    for r in cfg.commitments.get("recurring", []) or []:
+    for i, r in enumerate(cfg.commitments.get("recurring", []) or []):
         if str(r.get("name", "")).startswith("EXAMPLE"):
             continue
         if dow not in {DAY_INDEX[d] for d in r.get("days", [])}:
             continue
-        if day.isoformat() in [str(x) for x in (r.get("skip_dates") or [])]:
+        if _off(r, day):
             continue
         blocks.append(Block(
             start=cfg.at(day, parse_hhmm(r["start"])),
@@ -25,6 +34,7 @@ def expand_recurring(cfg, day: date) -> list[Block]:
             course_key=r.get("course", ""),
             location=r.get("location", ""),
             movable=bool(r.get("movable", False)),
+            note=f"rec:{i}",
         ))
     return blocks
 
@@ -81,7 +91,9 @@ def insert_meals(cfg, busy: list[Block], day: date,
     def collides(s: datetime, e: datetime) -> bool:
         return any(s < b.end and b.start < e for b in occupied + meals)
 
-    for m in cfg.commitments.get("meals", []) or []:
+    for j, m in enumerate(cfg.commitments.get("meals", []) or []):
+        if _off(m, day):
+            continue
         dur = timedelta(minutes=int(m["minutes"]))
         want = cfg.at(day, parse_hhmm(m["at"]))
         flex = int(m.get("flex", 0))
@@ -90,7 +102,7 @@ def insert_meals(cfg, busy: list[Block], day: date,
                 s = want + timedelta(minutes=delta)
                 if not collides(s, s + dur):
                     meals.append(Block(start=s, end=s + dur,
-                                       title=m["name"].title(), kind="meal"))
+                                       title=m["name"].title(), kind="meal", note=f"meal:{j}"))
                     break
             else:
                 continue
@@ -129,6 +141,11 @@ def build_day(cfg, day: date, external_busy: list[Block] | None = None,
     fixed += insert_meals(cfg, fixed, day, unplaced_meals)
     fixed.sort(key=lambda b: b.start)
     return fixed, free_intervals(cfg, day, fixed)
+
+
+def free_minutes(cfg, day: date, external_busy: list[Block] | None = None) -> int:
+    """Study time in a day: gaps too short to settle into do not count."""
+    return sum(g.minutes for g in build_day(cfg, day, external_busy)[1] if g.minutes >= MIN_GAP)
 
 
 def capacity_minutes(cfg, start: datetime, until: datetime,

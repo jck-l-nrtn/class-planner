@@ -1,5 +1,6 @@
 requests>=2.31
 PyYAML>=6.0
 icalendar>=5.0
+python-dateutil>=2.8
 playwright>=1.49
 tzdata>=2024.1
