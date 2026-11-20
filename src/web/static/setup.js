@@ -27,6 +27,18 @@
     if (on) btn.setAttribute("aria-busy", "true"); else btn.removeAttribute("aria-busy");
   }
 
+  const clock = (s) => Math.floor(s / 60) + ":" + String(Math.floor(s % 60)).padStart(2, "0");
+  const eased = (s, usual) => Math.min(0.95, 1 - Math.exp(-1.6 * s / usual));
+  function bar(el, frac, label) {
+    el.hidden = frac == null;
+    if (frac == null) { el.innerHTML = ""; return; }
+    if (!el.firstChild) el.innerHTML = '<div class="pbar" role="progressbar" aria-valuemin="0" aria-valuemax="100"><i></i></div><span></span>';
+    const pct = Math.round(frac * 100);
+    el.firstChild.setAttribute("aria-valuenow", pct);
+    el.firstChild.firstChild.style.width = pct + "%";
+    el.lastChild.textContent = label;
+  }
+
   function setErr(el, text) { el.textContent = text || ""; }
 
   async function load() {
@@ -310,9 +322,11 @@
     if (ready) $("ai-ready-text").textContent = t.name + " is ready. It will write your plans and time estimates.";
     $("ai-todo").hidden = !t || ready;
     $("ai-note").hidden = RENEW || AI_ONLY || SETTINGS || ready;
-    if (!t || ready) return;
+    if (!t || ready) { bar($("ai-bar"), null); return; }
 
     const job = t.install.status;
+    if (job === "running") bar($("ai-bar"), eased(t.install.elapsed || 0, 75), clock(t.install.elapsed || 0));
+    else bar($("ai-bar"), null);
     const inst = $("ai-install"), sign = $("ai-signin");
     inst.hidden = t.installed;
     sign.hidden = !t.installed;
@@ -425,6 +439,13 @@
     if (log.textContent !== text) { log.textContent = text; if (atEnd) log.scrollTop = log.scrollHeight; }
     log.hidden = !f.log.length;
     const st = $("progress-status");
+    if (f.status === "running" && f.steps) {
+      const all = f.steps.reduce((n, s) => n + s.secs, 0);
+      const done = f.steps.slice(0, f.step).reduce((n, s) => n + s.secs, 0);
+      const cur = f.steps[f.step];
+      bar($("progress-bar"), (done + cur.secs * eased(f.elapsed, cur.secs)) / all,
+        cur.label + " · " + (f.step + 1) + " of " + f.steps.length + " · " + clock(f.elapsed));
+    } else bar($("progress-bar"), f.status === "done" ? 1 : null, "Done");
     if (f.status === "running") {
       st.innerHTML = '<span class="spin" aria-hidden="true"></span> Setting things up. This can take a few minutes. Keep this page open.';
       $("progress-open").hidden = true;

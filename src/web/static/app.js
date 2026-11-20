@@ -158,11 +158,37 @@ const ICON_CARET = '<svg class="caret" width="8" height="5" viewBox="0 0 8 5" ar
 
 const JOB_LABEL = { sync: 'Sync', ls_refresh: 'Grade refresh', ls_login: 'LearningSuite sign-in', replan: 'Replan' };
 
+const JOB_SECS = { sync: 20, ls_refresh: 25, replan: 90 };
+const jobStart = {};
+let jobTick = null;
+
+function renderJobBar() {
+  const el = $('#job-bar');
+  const names = Object.keys(state.jobs).filter(n => JOB_SECS[n]);
+  el.hidden = !names.length;
+  el.querySelectorAll('[data-bar]').forEach(r => { if (!names.includes(r.dataset.bar)) r.remove(); });
+  if (!names.length) { clearInterval(jobTick); jobTick = null; return; }
+  for (const n of names) {
+    let row = el.querySelector(`[data-bar="${n}"]`);
+    if (!row) {
+      el.insertAdjacentHTML('beforeend', `<div class="pbar-row" data-bar="${n}"><div class="pbar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-label="${JOB_LABEL[n]}"><i></i></div><span></span></div>`);
+      row = el.lastElementChild;
+    }
+    const s = (Date.now() - jobStart[n]) / 1000;
+    const pct = Math.round(Math.min(0.95, 1 - Math.exp(-1.6 * s / JOB_SECS[n])) * 100);
+    row.firstChild.setAttribute('aria-valuenow', pct);
+    row.firstChild.firstChild.style.width = pct + '%';
+    row.lastChild.textContent = `${JOB_LABEL[n]} · ${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+  }
+  if (!jobTick) jobTick = setInterval(renderJobBar, 1000);
+}
+
 async function runJob(name) {
   if (state.jobs[name]) return;
   try {
     const { job } = await post('/api/job', { name });
     state.jobs[name] = job;
+    jobStart[name] = Date.now();
     renderJobs();
     pollJob(name, job);
   } catch (e) {
@@ -199,6 +225,7 @@ function renderJobs() {
     b.setAttribute('aria-busy', busy);
     b.disabled = busy;
   });
+  renderJobBar();
 }
 
 function lastSynced() {

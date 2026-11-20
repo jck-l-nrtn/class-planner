@@ -200,6 +200,7 @@ def test_install_route_starts_the_install_once(home, monkeypatch):
     assert started == ["claude"]
     claude = next(t for t in api.state()["ai"]["tools"] if t["cli"] == "claude")
     assert claude["install"]["status"] == "running"
+    assert claude["install"]["elapsed"] >= 0 and "started" not in claude["install"]
     api.ai_install({"cli": "claude"})
     time.sleep(0.05)
     assert started == ["claude"]
@@ -253,3 +254,14 @@ def test_schedule_failure_is_reported(home, monkeypatch):
     monkeypatch.setattr(api.subprocess, "run", lambda cmd, **kw: Failed)
     res, code = api.schedule({"on": True})
     assert code == 500 and res["ok"] is False and "nope" in res["error"]
+
+
+def test_first_run_reports_its_step_while_running(home):
+    assert "steps" not in api.state()["first_run"]
+    api._first.update(status="running", steps=["sync", "estimate", "plan"])
+    api._step("estimate")
+    f = api.state()["first_run"]
+    assert [s["label"] for s in f["steps"]] == ["Coursework", "Time estimates", "Plan"]
+    assert f["step"] == 1 and f["elapsed"] >= 0
+    api._first["status"] = "done"
+    assert "steps" not in api.state()["first_run"]

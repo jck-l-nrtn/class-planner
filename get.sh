@@ -6,7 +6,7 @@ REPO="jck-l-nrtn/learning-cheat"
 # Download to a temp folder first so a failed download changes nothing.
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
-[ -t 1 ] && printf '  Downloading Class Planner...'
+[ -t 1 ] && printf '  Downloading Learning Cheat...'
 SHA="$(curl -fsSL -H 'Accept: application/vnd.github.sha' \
   "https://api.github.com/repos/$REPO/commits/main" 2>/dev/null || true)"
 [[ "$SHA" =~ ^[0-9a-f]{40}$ ]] || SHA=""
@@ -37,6 +37,6 @@ else
   echo "  Done. The planner is opening in your browser for setup."
 fi
 echo "  It runs in this window, so leave the window open while you use it."
-echo "  Next time, double-click \"Class Planner\" in ${DEST/#$HOME/~}."
+echo "  Next time, double-click \"Learning Cheat\" in ${DEST/#$HOME/~}."
 echo
 exec ./plan app

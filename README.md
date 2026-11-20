@@ -28,7 +28,7 @@ in to LearningSuite. All of it stays in the folder.
 The planner runs in that Terminal window. Closing the window stops it; nothing
 is lost. Leave the folder where it is (moving it breaks the install and the
 automatic runs). If you want it somewhere handy, make an alias to
-`Class Planner.command` instead.
+`Learning Cheat.command` instead.
 
 ## Setup
 
@@ -61,7 +61,7 @@ of the list.
 
 ## Using it
 
-Double-click `Class Planner.command` in the folder, or run `./plan app`. It
+Double-click `Learning Cheat.command` in the folder, or run `./plan app`. It
 opens at http://127.0.0.1:8787.
 
 Today is the plan. Upcoming is everything still open, in order. Needs attention

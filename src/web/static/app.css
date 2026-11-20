@@ -175,6 +175,10 @@ main { padding: var(--gut) var(--gut) 120px; min-width: 0; background: var(--bas
   background: var(--gray0); border: 1px solid var(--gray2); padding: 6.4px 12.8px; margin: 0 0 12.8px; font-size: 14px;
 }
 .banner.danger { color: var(--red); border-color: var(--red); background: var(--base); font-weight: 600; }
+.pbar-row { display: flex; align-items: center; gap: 10px; margin: 8px 0; font-size: 13px; color: var(--info); }
+.pbar { flex: 1; max-width: 420px; height: 6px; border-radius: 3px; background: var(--gray1); overflow: hidden; }
+.pbar i { display: block; height: 100%; background: var(--primary-alt); transition: width 1s linear; }
+.pbar-row span { font-variant-numeric: tabular-nums; white-space: nowrap; }
 .panel-error { margin: 0 0 12.8px; border: 1px solid var(--red); padding: 9.6px 12.8px; }
 .panel-head { display: flex; justify-content: space-between; align-items: center; color: var(--red); gap: 8px; }
 .panel-error pre {
@@ -552,6 +556,7 @@ input:focus-visible, textarea:focus-visible { outline-offset: 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .pbar i { transition: none; }
   *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition: none !important; scroll-behavior: auto !important; }
   .btn.busy::before { animation: none; border-right-color: currentColor; opacity: .5; }
   .sk { animation: none; }

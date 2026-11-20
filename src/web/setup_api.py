@@ -6,6 +6,7 @@ import re
 import subprocess
 import sys
 import threading
+import time
 from datetime import date
 from pathlib import Path
 
@@ -15,6 +16,9 @@ _lock = threading.Lock()
 _canvas: dict = {"name": "", "courses": [], "error": ""}
 _ls: dict = {"status": "idle", "detail": "", "courses": [], "term": "", "session": None}
 _first: dict = {"status": "idle", "log": []}
+# label, usual seconds
+STEPS = {"ls": ("Grades", 25), "sync": ("Coursework", 20),
+         "estimate": ("Time estimates", 180), "plan": ("Plan", 90)}
 
 
 def needed() -> bool:
@@ -53,7 +57,7 @@ def state() -> dict:
             "defaults": {"timezone": wiz.system_timezone(), "wake": "07:00",
                          "sleep": "23:00", "term_start": term[0].isoformat(),
                          "term_end": term[1].isoformat()},
-            "first_run": {"status": _first["status"], "log": list(_first["log"])},
+            "first_run": _progress(),
             "schedule": {"supported": sys.platform == "darwin", "on": schedule_on()},
             "root": str(config.ROOT),
         }
@@ -181,6 +185,21 @@ def _validate(data: dict) -> tuple[dict, dict]:
             "sleep": week.get("sleep", ""), "term": term}, errors
 
 
+def _progress() -> dict:
+    out = {"status": _first["status"], "log": list(_first["log"])}
+    steps = _first.get("steps") or []
+    if _first["status"] == "running" and _first.get("step") in steps:
+        out["steps"] = [{"label": STEPS[k][0], "secs": STEPS[k][1]} for k in steps]
+        out["step"] = steps.index(_first["step"])
+        out["elapsed"] = int(time.time() - _first["step_at"])
+    return out
+
+
+def _step(key: str) -> None:
+    with _lock:
+        _first.update(step=key, step_at=time.time())
+
+
 def _log(line: str) -> None:
     with _lock:
         _first["log"].extend(str(line).splitlines() or [""])
@@ -201,22 +220,30 @@ def _first_run() -> None:
         cfg = config.Config()
         with _lock:
             session = _ls["session"]
-        if session is not None and cfg.ls_course_ids():
+        use_ls = session is not None and bool(cfg.ls_course_ids())
+        ai = agent.available()
+        with _lock:
+            _first["steps"] = ((["ls"] if use_ls else []) + ["sync"]
+                               + (["estimate", "plan"] if ai else []))
+        if use_ls:
             from ..ls import refresh
+            _step("ls")
             _log("Reading your LearningSuite gradebooks...")
             for r in refresh.refresh(cfg, interactive=True, session=session, log=_log):
                 _log(r.line())
+        _step("sync")
         _log("Merging your coursework...")
         _plan("sync")
         if _first.get("catch_up"):
             _plan("catch-up")
-        ai = agent.available()
         if not ai:
             _log("No AI tool found, so no time estimates or plan yet. Install one, "
                  "sign in, then press Replan in the app.")
         else:
+            _step("estimate")
             _log(f"Asking {agent.label(ai[0])} for time estimates (a few minutes)...")
             _plan("estimate", timeout=1800)
+            _step("plan")
             _log(f"Asking {agent.label(ai[0])} for today's plan...")
             _plan("today")
     except Exception as e:
@@ -242,7 +269,7 @@ def finish(data: dict) -> tuple[dict, int]:
     saver.save("commitments.yaml", wiz.commitments_yaml(
         clean["tz"], clean["wake"], clean["sleep"], clean["term"], classes, today))
     with _lock:
-        _first.update(status="running", log=[], catch_up=data.get("catch_up") is not False)
+        _first.update(status="running", log=[], steps=[], step=None, catch_up=data.get("catch_up") is not False)
     threading.Thread(target=_first_run, daemon=True).start()
     return {"ok": True}, 200
 

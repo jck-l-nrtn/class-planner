@@ -174,7 +174,7 @@ packages () {
   ./.venv/bin/python -m pip install -r requirements.txt
 }
 
-[ -n "${PLANNER_FROM_GET:-}" ] && item "Download Class Planner"
+[ -n "${PLANNER_FROM_GET:-}" ] && item "Download Learning Cheat"
 case $PYWHAT in
   have)    item "Python" ;;
   system)  item "Python $("$PY" --version 2>&1 | cut -d' ' -f2)" ;;

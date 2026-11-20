@@ -450,7 +450,7 @@ def serve(port: int = 8787, open_browser: bool = True) -> int:
             webbrowser.open(url)
         return 0
     threading.Thread(target=_keep_current, args=(port,), daemon=True).start()
-    print(f"Class planner running at {url}  (Ctrl-C to stop)")
+    print(f"Learning Cheat running at {url}  (Ctrl-C to stop)")
     if open_browser:
         threading.Timer(0.6, lambda: webbrowser.open(url)).start()
     try:

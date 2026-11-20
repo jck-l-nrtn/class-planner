@@ -162,6 +162,8 @@ def status() -> dict:
         path = agent.find(cli)
         with _lock:
             job = dict(_jobs.get(cli) or {"status": "idle", "detail": ""})
+        if "started" in job:
+            job["elapsed"] = int(time.time() - job.pop("started"))
         tools.append({"cli": cli, "name": t["name"], "needs": t["needs"],
                       "logo": t["logo"], "tiers": t["tiers"],
                       "account": t.get("account"), "can_switch": bool(t.get("signout")),
@@ -221,7 +223,7 @@ def install(cli: str) -> bool:
     with _lock:
         if (_jobs.get(cli) or {}).get("status") == "running":
             return False
-        _jobs[cli] = {"status": "running", "detail": ""}
+        _jobs[cli] = {"status": "running", "detail": "", "started": time.time()}
     threading.Thread(target=_run_install, args=(cli,), daemon=True).start()
     return True
 
@@ -266,7 +268,7 @@ def open_sign_in(cli: str, switch: bool = False) -> str:
     script = Path(tempfile.gettempdir()) / f"Sign in to {name}.command"
     script.write_text(
         "#!/bin/bash\nrm -f \"$0\"   # used once; bash keeps reading it after this\nclear\n"
-        f"echo 'Signing in to {name} for the class planner.'\n"
+        f"echo 'Signing in to {name} for Learning Cheat.'\n"
         f"echo '{TOOLS[cli]['signin_help']}'\n"
         "echo 'When it says you are signed in, close this window and go back to the setup page.'\n"
         f"echo\ncd \"$HOME\"\n{line}\n", encoding="utf-8")

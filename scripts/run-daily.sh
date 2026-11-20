@@ -38,9 +38,9 @@ print(json.load(open(sys.argv[1])).get('day_summary','plan ready')[:230])" \
     /usr/bin/osascript -e "display notification \"${SUMMARY//\"/}\" with title \"Today's plan is ready\"" 2>/dev/null || true
   fi
 else
-  /usr/bin/osascript -e "display notification \"No plan for today — open Class Planner to see why\" with title \"Planning failed\" sound name \"Basso\"" 2>/dev/null || true
+  /usr/bin/osascript -e "display notification \"No plan for today — open Learning Cheat to see why\" with title \"Planning failed\" sound name \"Basso\"" 2>/dev/null || true
 fi
 
 if [ "$LS_STALE" = "1" ]; then
-  /usr/bin/osascript -e 'display notification "Grades did not update — open Class Planner and click Sign in to LearningSuite" with title "LearningSuite needs re-login" sound name "Basso"' 2>/dev/null || true
+  /usr/bin/osascript -e 'display notification "Grades did not update — open Learning Cheat and click Sign in to LearningSuite" with title "LearningSuite needs re-login" sound name "Basso"' 2>/dev/null || true
 fi

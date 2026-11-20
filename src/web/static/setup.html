@@ -96,6 +96,7 @@
       <button type="button" class="btn" id="ai-switch">Use a different account</button></div>
     <div id="ai-todo" class="panel" hidden>
       <p id="ai-todo-text" role="status"></p>
+      <div id="ai-bar" class="pbar-row" hidden></div>
       <p><button type="button" class="btn go" id="ai-install">Install</button>
          <button type="button" class="btn go" id="ai-signin">Sign in</button></p>
       <p class="hint">Install runs the company's own installer, the same one their website gives. It puts their tool in your home folder, outside the planner's folder, so deleting the planner does not remove it.</p>
@@ -143,6 +144,7 @@
     <p id="settings-more" class="hint">Starting a new term, or changing which courses are tracked? <a href="/setup">Run setup again</a>. It keeps your old files as backups.</p>
     <div id="progress" class="panel" hidden>
       <p id="progress-status" role="status"></p>
+      <div id="progress-bar" class="pbar-row" hidden></div>
       <pre id="progress-log" class="log" tabindex="0" aria-label="Setup progress"></pre>
       <p id="progress-open" hidden><a class="btn go big" href="/">Open the planner</a></p>
     </div>

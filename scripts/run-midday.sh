@@ -20,5 +20,5 @@ fi
 echo "===== done $(date '+%T') ====="
 
 if [ "$LS_STALE" = "1" ]; then
-  /usr/bin/osascript -e 'display notification "Grades still not updating — open Class Planner and click Sign in to LearningSuite" with title "LearningSuite needs re-login" sound name "Basso"' 2>/dev/null || true
+  /usr/bin/osascript -e 'display notification "Grades still not updating — open Learning Cheat and click Sign in to LearningSuite" with title "LearningSuite needs re-login" sound name "Basso"' 2>/dev/null || true
 fi

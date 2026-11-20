@@ -109,6 +109,11 @@ pre { margin: 6px 0 0; font: 13px/1.5 ui-monospace, Menlo, Consolas, monospace; 
   .pick { min-height: 40px; }
   .pick input { margin-top: 10px; }
 }
+.pbar-row { display: flex; align-items: center; gap: 10px; margin: 8px 0; font-size: 13px; color: var(--info); }
+.pbar { flex: 1; max-width: 420px; height: 6px; border-radius: 3px; background: var(--gray1); overflow: hidden; }
+.pbar i { display: block; height: 100%; background: var(--primary-alt); transition: width 1s linear; }
+.pbar-row span { font-variant-numeric: tabular-nums; white-space: nowrap; }
+@media (prefers-reduced-motion: reduce) { .pbar i { transition: none; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; } }
 
 .hint { color: var(--muted, #666); font-size: 12px; margin: 6px 0 0; }
